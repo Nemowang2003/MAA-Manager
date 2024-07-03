@@ -4,12 +4,14 @@ from socketserver import TCPServer
 from ssl import SSLContext, PROTOCOL_TLS_SERVER
 from urllib.parse import urlparse, parse_qsl
 from datetime import datetime, timedelta
-from typing import Dict
+from pathlib import Path
+import json
+import signal
 
 ADDR = ("0.0.0.0", 4573)
 QUERY = "/query"
 REPORT = "/report"
-LAST_ACCESS: Dict[str, datetime] = dict()
+SAVED_FILE = Path("example.json")
 
 
 def display(timedelta: timedelta) -> str:
@@ -71,7 +73,6 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if content := self.rfile.read(int(self.headers.get("Content-Length"))).decode():
-            self.log_message(content)
             LAST_ACCESS[content] = datetime.now()
 
         self.send_response(HTTPStatus.OK)
@@ -91,8 +92,26 @@ class Handler(BaseHTTPRequestHandler):
         return "I don't know :("
 
 
-with TCPServer(ADDR, Handler) as server:
-    context = SSLContext(PROTOCOL_TLS_SERVER)
-    context.load_cert_chain("example.crt", "example.key")
-    server.socket = context.wrap_socket(server.socket, server_side=True)
-    server.serve_forever()
+def sigterm_handler(signalnum, frame):
+    """Save `LAST_ACCESS` before exit."""
+    with SAVED_FILE.open("w") as file:
+        json.dump(LAST_ACCESS, file)
+    exit(0)
+
+
+if __name__ == "__main__":
+    # read from saved data
+    if SAVED_FILE.exists():
+        with SAVED_FILE.open() as file:
+            LAST_ACCESS = json.load(file)
+    else:
+        LAST_ACCESS = dict()
+
+    # register SIGTERM handler
+    signal.signal(signal.SIGTERM, sigterm_handler)
+
+    with TCPServer(ADDR, Handler) as server:
+        context = SSLContext(PROTOCOL_TLS_SERVER)
+        context.load_cert_chain("example.crt", "example.key")
+        server.socket = context.wrap_socket(server.socket, server_side=True)
+        server.serve_forever()
