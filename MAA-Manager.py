@@ -62,7 +62,7 @@ def query(user):
         duration = datetime.now() - datetime.fromisoformat(time)
         return f"MAA last {action} {display(duration)}ago.\n"
     else:
-        abort(404)
+        return "MAA has no action since the server started.\n"
 
 
 @app.route("/report/<user>/<action>")
