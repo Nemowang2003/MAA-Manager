@@ -5,25 +5,19 @@ At this stage, maybe just call it MAA-Tracker :(
 
 ## Feature
 
-- Report MAA login action by username.
+- Report MAA action by username.
 
-- Query MAA last login action time by username.
+- Query MAA last action time by username.
 
 ## API
 
-- `/report` accepts `POST`
-
-    - content: Plain text for username.
+- `/report/<user>/<action>` (`action` is 'online' or 'offline')
 
     - response: No content.
 
-- `/query` accepts `GET`
+- `/query/<user>`
 
-    - parmas:
-
-        - user: The username to query.
-
-    - response: Plain text of decription for time since last login action.
+    - response: Plain text of decription for time since last action.
 
 ## Deployment
 
@@ -51,9 +45,13 @@ Here is an example:
     After=multi-user.target
     
     [Service]
-    ExecStart=python3 -u /path/to/project/server.py
+    ExecStart=flask run
     WorkingDirectory=/path/to/project
     RestartSec=10 # Maybe shorter? I'm not sure.
     
     [Install]
     WantedBy=multi-user.target
+
+## TODO
+
+Looking forward to deploy on something like nginx or apache.
