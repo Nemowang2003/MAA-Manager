@@ -55,9 +55,7 @@ class Handler(BaseHTTPRequestHandler):
 
         user = query[0][1]
         if last_time := LAST_ACCESS.get(user):
-            payload = (
-                f"MAA last online {display(datetime.now() - last_time)}ago.\n".encode()
-            )
+            payload = f"MAA last online {display(datetime.now() - datetime.fromisoformat(last_time))}ago.\n".encode()
         else:
             payload = "MAA hasn't logged in since the server started.\n".encode()
 
@@ -73,7 +71,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if content := self.rfile.read(int(self.headers.get("Content-Length"))).decode():
-            LAST_ACCESS[content] = datetime.now()
+            LAST_ACCESS[content] = str(datetime.now())
 
         self.send_response(HTTPStatus.OK)
         self.send_header("Connection", "close")
