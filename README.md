@@ -1,13 +1,13 @@
 # MAA-Manager
 
-An HTTPS Server to manage MAA through its remote control protocol.  
+An HTTPS Server to manage MAA through its remote control protocol managed by poetry.  
 At this stage, maybe just call it MAA-Tracker :(
 
 ## Feature
 
-- Report MAA action by username.
+- Report MAA action (login/logoout) by username.
 
-- Query MAA last action time by username.
+- Query MAA last action (login/logout) time by username.
 
 ## API
 
@@ -18,6 +18,11 @@ At this stage, maybe just call it MAA-Tracker :(
 - `/query/<user>`
 
     - response: Plain text of decription for time since last action.
+
+## Dependency
+
+This project is managed by `poetry`.  
+So just have `poetry` and `python3.12` (will soon change to a more reasonable one) installed, it would deal with the rest.
 
 ## Deployment
 
@@ -45,13 +50,16 @@ Here is an example:
     After=multi-user.target
     
     [Service]
-    ExecStart=flask run
+    User=YOUR-USERNAME
+    ExecStart=/path/to/poetry run flask run
     WorkingDirectory=/path/to/project
     RestartSec=10 # Maybe shorter? I'm not sure.
     
     [Install]
     WantedBy=multi-user.target
 
+**Note**: `User` should be specified because we usually don't have `poetry` installed for root.
+
 ## TODO
 
-Looking forward to deploy on something like nginx or apache.
+Looking forward to deploy on something like waitress.
