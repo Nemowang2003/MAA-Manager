@@ -11,6 +11,11 @@ files = [
     {file = "blinker-1.8.2.tar.gz", hash = "sha256:8f77b09d3bf7c795e969e9486f39c2c5e9c39d4ee07424be2bc594ece9642d83"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://mirror.nju.edu.cn/pypi/web/simple"
+reference = "mirrors"
+
 [[package]]
 name = "click"
 version = "8.1.7"
@@ -25,6 +30,11 @@ files = [
 [package.dependencies]
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
+[package.source]
+type = "legacy"
+url = "https://mirror.nju.edu.cn/pypi/web/simple"
+reference = "mirrors"
+
 [[package]]
 name = "colorama"
 version = "0.4.6"
@@ -35,6 +45,11 @@ files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://mirror.nju.edu.cn/pypi/web/simple"
+reference = "mirrors"
 
 [[package]]
 name = "flask"
@@ -58,6 +73,11 @@ Werkzeug = ">=3.0.0"
 async = ["asgiref (>=3.2)"]
 dotenv = ["python-dotenv"]
 
+[package.source]
+type = "legacy"
+url = "https://mirror.nju.edu.cn/pypi/web/simple"
+reference = "mirrors"
+
 [[package]]
 name = "itsdangerous"
 version = "2.2.0"
@@ -68,6 +88,11 @@ files = [
     {file = "itsdangerous-2.2.0-py3-none-any.whl", hash = "sha256:c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef"},
     {file = "itsdangerous-2.2.0.tar.gz", hash = "sha256:e0050c0b7da1eea53ffaf149c0cfbb5c6e2e2b69c4bef22c81fa6eb73e5f6173"},
 ]
+
+[package.source]
+type = "legacy"
+url = "https://mirror.nju.edu.cn/pypi/web/simple"
+reference = "mirrors"
 
 [[package]]
 name = "jinja2"
@@ -85,6 +110,11 @@ MarkupSafe = ">=2.0"
 
 [package.extras]
 i18n = ["Babel (>=2.7)"]
+
+[package.source]
+type = "legacy"
+url = "https://mirror.nju.edu.cn/pypi/web/simple"
+reference = "mirrors"
 
 [[package]]
 name = "markupsafe"
@@ -155,6 +185,11 @@ files = [
     {file = "MarkupSafe-2.1.5.tar.gz", hash = "sha256:d283d37a890ba4c1ae73ffadf8046435c76e7bc2247bbb63c00bd1a709c6544b"},
 ]
 
+[package.source]
+type = "legacy"
+url = "https://mirror.nju.edu.cn/pypi/web/simple"
+reference = "mirrors"
+
 [[package]]
 name = "python-dotenv"
 version = "1.0.1"
@@ -168,6 +203,11 @@ files = [
 
 [package.extras]
 cli = ["click (>=5.0)"]
+
+[package.source]
+type = "legacy"
+url = "https://mirror.nju.edu.cn/pypi/web/simple"
+reference = "mirrors"
 
 [[package]]
 name = "werkzeug"
@@ -186,7 +226,12 @@ MarkupSafe = ">=2.1.1"
 [package.extras]
 watchdog = ["watchdog (>=2.3)"]
 
+[package.source]
+type = "legacy"
+url = "https://mirror.nju.edu.cn/pypi/web/simple"
+reference = "mirrors"
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "138cde9f29da90d6f6e50e42ccd8757d0bf435c24f187b0e20be7af9cb8bb00e"
+content-hash = "2940138b0e017f5e4af1e1f4326da6e6e399b8bf43b6870baf76c68ea4a6f791"
