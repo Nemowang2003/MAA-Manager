@@ -22,7 +22,7 @@ At this stage, maybe just call it MAA-Tracker :(
 ## Dependency
 
 This project is managed by `poetry`.  
-So just have `poetry` and `python3.12` (will soon change to a more reasonable one) installed, it would deal with the rest.
+So just have `poetry` and `python3.10` installed, it would deal with the rest.
 
 ## Deployment
 
