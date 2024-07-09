@@ -26,30 +26,30 @@ signal.signal(signal.SIGTERM, sigterm_handler)
 app = Flask(__name__)
 
 
-def display(timedelta: timedelta) -> str:
+def display(duration: timedelta) -> str:
     """Display`timedelta` with a better format."""
 
     def format(amount: int, unit: str):
-        return f"{amount} {unit}" + "s " if abs(amount) != 1 else " "
+        return f"{amount} {unit}" + ("s " if abs(amount) != 1 else " ")
 
     msg = ""
 
-    if timedelta.days:
-        msg += format(timedelta.days, "day")
+    if duration.days:
+        msg += format(duration.days, "day")
 
-    hour = timedelta.seconds // 3600
+    hour = duration.seconds // 3600
     if hour:
         msg += format(hour, "hour")
     elif msg:  # implies hour is 0
         msg += "0 hours "
 
-    minute = timedelta.seconds % 3600 // 60
+    minute = duration.seconds % 3600 // 60
     if minute:
         msg += format(minute, "minute")
     elif msg:  # implies minute is 0
         msg += "0 minutes "
 
-    second = timedelta.seconds % 60
+    second = duration.seconds % 60
     msg += format(second, "second")
 
     return msg
