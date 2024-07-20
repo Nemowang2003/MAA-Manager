@@ -3,19 +3,39 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import json
 import signal
+from smtplib import SMTP, SMTP_SSL
+from email.message import EmailMessage
 
-SAVED_FILE = Path("example.json")
+SAVED = Path("example.saved.json")
 
-if SAVED_FILE.exists():
-    with SAVED_FILE.open() as file:
+if SAVED.exists():
+    with SAVED.open() as file:
         LAST_ACTION = json.load(file)
 else:
     LAST_ACTION = dict()
 
+CONFIG = Path("example.config.json")
+
+if CONFIG.exists():
+    with CONFIG.open() as file:
+        config = json.load(file)
+        smtp = SMTP_SSL if config["server"]["ssl"] else SMTP
+        host = config["server"]["host"]
+        port = config["server"].get("port", 0)
+        SMTP_SERVER = smtp(host=host, port=port)
+        username = config["auth"]["username"]
+        password = config["auth"]["password"]
+        SMTP_SERVER.login(username, password)
+
+else:
+    SMTP_SERVER = None
+
+WAITING_MAIL = set()
+
 
 def sigterm_handler(signalnum, frame):
     """Save `LAST_ACCESS` before exit."""
-    with SAVED_FILE.open("w") as file:
+    with SAVED.open("w") as file:
         json.dump(LAST_ACTION, file)
     exit(0)
 
@@ -58,6 +78,7 @@ def display(duration: timedelta) -> str:
 @app.route("/query/<user>")
 def query(user):
     if _ := LAST_ACTION.get(user):
+        WAITING_MAIL.add(user)
         action, time = _
         duration = datetime.now() - datetime.fromisoformat(time)
         return f"MAA last {action} {display(duration)}ago.\n"
@@ -65,9 +86,22 @@ def query(user):
         return "MAA has no action since the server started.\n"
 
 
+def send_mail(user: str):
+    if SMTP_SERVER is None:
+        return
+    msg = EmailMessage()
+    msg.set_content(f"{user} has just offline.")
+    msg["Subject"] = "MAA-Manager Offline Notice"
+    msg["From"] = msg["To"] = username
+    SMTP_SERVER.send_message(msg)
+
+
 @app.route("/report/<user>/<action>")
 def report(user, action):
     if action not in ("online", "offline"):
         abort(404)
+    if user in WAITING_MAIL:
+        send_mail(user)
+        WAITING_MAIL.remove(user)
     LAST_ACTION[user] = (action, str(datetime.now()))
     return ""
