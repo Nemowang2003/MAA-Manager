@@ -104,7 +104,7 @@ def send_mail(user: str):
 def report(user, action):
     if action not in ("online", "offline"):
         abort(404)
-    if user in WAITING_MAIL:
+    if action == "offline" and user in WAITING_MAIL:
         send_mail(user)
         WAITING_MAIL.remove(user)
     LAST_ACTION[user] = (action, str(datetime.now()))
