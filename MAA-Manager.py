@@ -19,13 +19,15 @@ CONFIG = Path("example.config.json")
 if CONFIG.exists():
     with CONFIG.open() as file:
         config = json.load(file)
-        smtp = SMTP_SSL if config["server"]["ssl"] else SMTP
-        host = config["server"]["host"]
+        config_server = config["server"]
+        config_auth = config["auth"]
+
+        smtp = SMTP_SSL if config_server.get("ssl", False) else SMTP
+        host = config_server["host"]
         port = config["server"].get("port", 0)
         SMTP_SERVER = smtp(host=host, port=port)
-        username = config["auth"]["username"]
-        password = config["auth"]["password"]
-        SMTP_SERVER.login(username, password)
+        username = config_auth["username"]
+        password = config_auth["password"]
 
 else:
     SMTP_SERVER = None
@@ -89,11 +91,13 @@ def query(user):
 def send_mail(user: str):
     if SMTP_SERVER is None:
         return
+    SMTP_SERVER.login(username, password)
     msg = EmailMessage()
     msg.set_content(f"{user} has just offline.")
     msg["Subject"] = "MAA-Manager Offline Notice"
     msg["From"] = msg["To"] = username
     SMTP_SERVER.send_message(msg)
+    SMTP_SERVER.close()
 
 
 @app.route("/report/<user>/<action>")
