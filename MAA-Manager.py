@@ -1,6 +1,9 @@
 from flask import Flask, abort
 from datetime import datetime, timedelta
 from pathlib import Path
+from dataclasses import dataclass
+from sys import stderr
+import traceback
 import json
 import signal
 from smtplib import SMTP, SMTP_SSL
@@ -14,23 +17,58 @@ if SAVED.exists():
 else:
     LAST_ACTION = dict()
 
+
+@dataclass
+class MailSender:
+    host: str
+    port: int
+    ssl: bool
+    username: str
+    password: str
+
+    CONTENT = "{} has just offline."
+
+    def __post_init__(self):
+        self._msg = EmailMessage()
+        self._msg["Subject"] = "MAA-Manager Offline Notice"
+        self._msg["From"] = self._msg["To"] = self.username
+        # check connection
+        self.smtp_server()
+
+    def smtp_server(self) -> SMTP | SMTP_SSL:
+        smtp = SMTP_SSL if self.ssl else SMTP
+        smtp_server = smtp(self.host, self.port)
+        smtp_server.login(self.username, self.password)
+        return smtp_server
+
+    def send(self, content):
+        self._msg.set_content(self.CONTENT.format(content))
+        with self.smtp_server() as smtp_server:
+            smtp_server.send_message(self._msg)
+
+
 CONFIG = Path("example.config.json")
 
+mail_sender: MailSender | None
+
 if CONFIG.exists():
-    with CONFIG.open() as file:
-        config = json.load(file)
-        config_server = config["server"]
-        config_auth = config["auth"]
-
-        smtp = SMTP_SSL if config_server.get("ssl", False) else SMTP
-        host = config_server["host"]
-        port = config["server"].get("port", 0)
-        SMTP_SERVER = smtp(host=host, port=port)
-        username = config_auth["username"]
-        password = config_auth["password"]
-
-else:
-    SMTP_SERVER = None
+    try:
+        with CONFIG.open() as file:
+            config = json.load(file)
+            server = config["server"]
+            auth = config["auth"]
+            mail_sender = MailSender(
+                host=server["host"],
+                port=server.get("port", 0),
+                ssl=server.get("ssl", False),
+                username=auth["username"],
+                password=auth["password"],
+            )
+    except Exception:
+        mail_sender = None
+        print("======ERROR READING CONFIG======", file=stderr)
+        traceback.print_exc()
+        print("======ERROR READING CONFIG======", file=stderr)
 
 WAITING_MAIL = set()
 
@@ -88,24 +126,12 @@ def query(user):
         return "MAA has no action since the server started.\n"
 
 
-def send_mail(user: str):
-    if SMTP_SERVER is None:
-        return
-    SMTP_SERVER.login(username, password)
-    msg = EmailMessage()
-    msg.set_content(f"{user} has just offline.")
-    msg["Subject"] = "MAA-Manager Offline Notice"
-    msg["From"] = msg["To"] = username
-    SMTP_SERVER.send_message(msg)
-    SMTP_SERVER.close()
-
-
 @app.route("/report/<user>/<action>")
 def report(user, action):
     if action not in ("online", "offline"):
         abort(404)
     if action == "offline" and user in WAITING_MAIL:
-        send_mail(user)
+        mail_sender.send(user)
         WAITING_MAIL.remove(user)
     LAST_ACTION[user] = (action, str(datetime.now()))
     return ""
