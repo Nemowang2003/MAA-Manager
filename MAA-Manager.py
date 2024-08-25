@@ -8,6 +8,12 @@ import json
 import signal
 from smtplib import SMTP, SMTP_SSL
 from email.message import EmailMessage
+import requests
+import time
+import hmac
+import hashlib
+from apscheduler.schedulers.background import BackgroundScheduler
+from random import randint
 
 SAVED = Path("example.saved.json")
 
@@ -26,11 +32,11 @@ class MailSender:
     username: str
     password: str
 
-    CONTENT = "{} has just offline."
+    OFFLINE = "{} has just offline."
+    DAILY_ERROR = "{} has some trouble with daily sign-in."
 
     def __post_init__(self):
         self._msg = EmailMessage()
-        self._msg["Subject"] = "MAA-Manager Offline Notice"
         self._msg["From"] = self._msg["To"] = self.username
         # check connection
         self.smtp_server()
@@ -41,31 +47,162 @@ class MailSender:
         smtp_server.login(self.username, self.password)
         return smtp_server
 
-    def send(self, content):
-        self._msg.set_content(self.CONTENT.format(content))
+    def send_offline(self, user):
+        self._msg["Subject"] = "MAA-Manager Offline Notice"
+        self._msg.set_content(self.OFFLINE.format(user))
+        with self.smtp_server() as smtp_server:
+            smtp_server.send_message(self._msg)
+
+    def send_daily_error(self, user):
+        self._msg["Subject"] = "MAA-Manager Daily-Sign Error"
+        self._msg.set_content(self.DAILY_ERROR.format(user))
         with self.smtp_server() as smtp_server:
             smtp_server.send_message(self._msg)
 
 
+class DailySignException(Exception):
+    pass
+
+
+@dataclass
+class DailySign:
+    phone: str
+    password: str
+    uid: str
+
+    HEADER = {
+        "User-Agent": "Skland/1.0.1 (com.hypergryph.skland; build:100001014; Android 31; ) Okhttp/4.11.0",
+        "Accept-Encoding": "gzip",
+        "Connection": "close",
+    }
+
+    LOGIN_URL = "https://as.hypergryph.com/user/auth/v1/token_by_phone_password"
+    GRANT_URL = "https://as.hypergryph.com/user/oauth2/v2/grant"
+    CRED_URL = "https://zonai.skland.com/api/v1/user/auth/generate_cred_by_code"
+    DAILY_URL = "https://zonai.skland.com/api/v1/game/attendance"
+
+    def __post_init__(self):
+        try:
+            hypergryph_token = requests.post(
+                self.LOGIN_URL,
+                json={
+                    "phone": self.phone,
+                    "password": self.password,
+                },
+                headers=self.HEADER,
+            ).json()["data"]["token"]
+        except Exception as e:
+            raise DailySignException(
+                f"[{self.phone}]: Failed to get token of `ak.hypergryph.com`."
+            ) from e
+
+        try:
+            grant_code = requests.post(
+                self.GRANT_URL,
+                json={
+                    "appCode": "4ca99fa6b56cc2ba",
+                    "token": hypergryph_token,
+                    "type": 0,
+                },
+                headers=self.HEADER,
+            ).json()["data"]["code"]
+            _ = requests.post(
+                self.CRED_URL,
+                json={
+                    "kind": 1,
+                    "code": grant_code,
+                },
+                headers=self.HEADER,
+            ).json()["data"]
+            self.skland_cred = _["cred"]
+            self.skland_token = _["token"]
+        except Exception as e:
+            raise DailySignException(
+                f"[{self.phone}]: Failed to log into `skland.com`."
+            ) from e
+
+    def __call__(self):
+        try:
+            # It was said that `- 2` should be added according to experience.
+            timestamp = str(time.time() - 2)
+            # It was said that it's fine for all fields (other than timestamp) to be empty.
+            header = {
+                "platform": "",
+                "dId": "",
+                "vName": "",
+                "timestamp": timestamp,
+            }
+            payload = {
+                "uid": self.uid,
+                "gameId": 1,
+            }
+            content = "".join(
+                (self.DAILY_URL, timestamp, json.dumps(header, separators=(",", ":")))
+            )
+            encrypted = (
+                hmac.new(self.skland_token.encode(), content.encode(), hashlib.sha256)
+                .hexdigest()
+                .encode()
+            )
+
+            # It was said that signature is needed, but it still worded without it.
+            # So I left it `assigned but never used`, intentionally (for future use).
+            signature = hashlib.md5(encrypted).hexdigest()
+
+            requests.post(
+                self.DAILY_URL,
+                json=payload,
+                headers={"cred": self.skland_cred} | self.HEADER | header,
+            )
+        except Exception as e:
+            MAIL_SENDER.send_daily_error(self.phone)
+            raise DailySignException(
+                f"[{self.phone}]: Failed to perform daily sign in."
+            ) from e
+
+
 CONFIG = Path("example.config.json")
 
-mail_sender: MailSender | None
+MAIL_SENDER: MailSender | None
 
 if CONFIG.exists():
     try:
         with CONFIG.open() as file:
             config = json.load(file)
-            server = config["server"]
-            auth = config["auth"]
-            mail_sender = MailSender(
-                host=server["host"],
-                port=server.get("port", 0),
-                ssl=server.get("ssl", False),
-                username=auth["username"],
-                password=auth["password"],
+            mail = config["mail-sender"]
+            MAIL_SENDER = MailSender(
+                host=mail["host"],
+                port=mail.get("port", 0),
+                ssl=mail.get("ssl", False),
+                username=mail["username"],
+                password=mail["password"],
             )
-    except Exception:
-        mail_sender = None
+
+            SCHEDULER = BackgroundScheduler()
+            for daily in config.get("daily-sign", []):
+                try:
+                    SCHEDULER.add_job(
+                        DailySign(
+                            phone=daily["phone"],
+                            password=daily["password"],
+                            uid=daily["uid"],
+                        ),
+                        trigger="cron",
+                        hour=str(randint(0, 10)),
+                        minute=str(randint(0, 59)),
+                        second=str(randint(0, 59)),
+                    )
+
+                except DailySignException:  # error with DailySign auth
+                    print("=====DailySign Auth Failed====", file=stderr)
+                    traceback.print_exc()
+                    print("=====DailySign Auth Failed====", file=stderr)
+
+            if SCHEDULER.get_jobs():
+                SCHEDULER.start()
+
+    except Exception:  # other fatal error
+        MAIL_SENDER = None
         print("======ERROR READING CONFIG======", file=stderr)
         traceback.print_exc()
         print("======ERROR READING CONFIG======", file=stderr)
@@ -118,8 +255,9 @@ def display(duration: timedelta) -> str:
 @app.route("/query/<user>")
 def query(user):
     if _ := LAST_ACTION.get(user):
-        WAITING_MAIL.add(user)
         action, time = _
+        if action == "online":
+            WAITING_MAIL.add(user)
         duration = datetime.now() - datetime.fromisoformat(time)
         return f"MAA last {action} {display(duration)}ago.\n"
     else:
@@ -131,7 +269,7 @@ def report(user, action):
     if action not in ("online", "offline"):
         abort(404)
     if action == "offline" and user in WAITING_MAIL:
-        mail_sender.send(user)
+        MAIL_SENDER.send_offline(user)
         WAITING_MAIL.remove(user)
     LAST_ACTION[user] = (action, str(datetime.now()))
     return ""
