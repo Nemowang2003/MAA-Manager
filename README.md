@@ -5,9 +5,13 @@ At this stage, maybe just call it MAA-Tracker :(
 
 ## Feature
 
-- Report MAA action (login/logoout) by username.
+- Report MAA action (login/logout) by username.
 
 - Query MAA last action (login/logout) time by username.
+
+- Email notification when MAA is offline.
+
+- Automatic daily sign up for Skland.
 
 ## API
 
@@ -62,4 +66,10 @@ Here is an example:
 
 ## TODO
 
-Looking forward to deploy on something like waitress.
+- Place all of the `example.*` files somewhere else.
+
+- Add comments and type annotations for Skland daily sign up, maybe refactor.
+
+- Create a json schema for the config file.
+
+- Looking forward to deploy on something like waitress.
