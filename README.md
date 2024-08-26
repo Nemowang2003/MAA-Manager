@@ -33,7 +33,7 @@ So just have `poetry` and `python3.10` installed, it would deal with the rest.
 - Self-Signed Certificate
 
 This project is using a self-signed certificate.  
-The certificate and the key should be palced at `example.crt` and `example.key` respectively.
+The certificate and the key should be palced at `config/maa-manager.crt` and `config/maa-manager.key` respectively.
 
 To get a self-signed (ECDSA-SHA256) certificate, run the command below.
 
@@ -65,11 +65,5 @@ Here is an example:
 **Note**: `User` should be specified because we usually don't have `poetry` installed for root.
 
 ## TODO
-
-- Place all of the `example.*` files somewhere else.
-
-- Add comments and type annotations for Skland daily sign up, maybe refactor.
-
-- Create a json schema for the config file.
 
 - Looking forward to deploy on something like waitress.

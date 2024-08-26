@@ -15,7 +15,7 @@ import hashlib
 from apscheduler.schedulers.background import BackgroundScheduler
 from random import randint
 
-SAVED = Path("example.saved.json")
+SAVED = Path("config/saved.json")
 
 if SAVED.exists():
     with SAVED.open() as file:
@@ -47,13 +47,13 @@ class MailSender:
         smtp_server.login(self.username, self.password)
         return smtp_server
 
-    def send_offline(self, user):
+    def send_offline(self, user: str):
         self._msg["Subject"] = "MAA-Manager Offline Notice"
         self._msg.set_content(self.OFFLINE.format(user))
         with self.smtp_server() as smtp_server:
             smtp_server.send_message(self._msg)
 
-    def send_daily_error(self, user):
+    def send_daily_error(self, user: str):
         self._msg["Subject"] = "MAA-Manager Daily-Sign Error"
         self._msg.set_content(self.DAILY_ERROR.format(user))
         with self.smtp_server() as smtp_server:
@@ -137,7 +137,7 @@ class DailySign:
                 "gameId": 1,
             }
             content = "".join(
-                (self.DAILY_URL, timestamp, json.dumps(header, separators=(",", ":")))
+                [self.DAILY_URL, timestamp, json.dumps(header, separators=(",", ":"))]
             )
             encrypted = (
                 hmac.new(self.skland_token.encode(), content.encode(), hashlib.sha256)
@@ -145,7 +145,7 @@ class DailySign:
                 .encode()
             )
 
-            # It was said that signature is needed, but it still worded without it.
+            # It was said that the signature is needed, but it still worked without it.
             # So I left it `assigned but never used`, intentionally (for future use).
             signature = hashlib.md5(encrypted).hexdigest()
 
@@ -161,7 +161,7 @@ class DailySign:
             ) from e
 
 
-CONFIG = Path("example.config.json")
+CONFIG = Path("config/config.json")
 
 MAIL_SENDER: MailSender | None
 
@@ -179,33 +179,42 @@ if CONFIG.exists():
             )
 
             SCHEDULER = BackgroundScheduler()
-            for daily in config.get("daily-sign", []):
+            for daily_config in config.get("daily-sign", []):
                 try:
+                    daily_sign = DailySign(
+                        phone=daily_config["phone"],
+                        password=daily_config["password"],
+                        uid=daily_config["uid"],
+                    )
+
+                    hour = randint(0, 8)
+                    minute = randint(0, 59)
+                    second = randint(0, 59)
+                    print(
+                        f"[{daily_sign.phone}]: Schedule daily sign at {hour:02}:{minute:02}:{second:02}.",
+                        file=stderr,
+                    )
                     SCHEDULER.add_job(
-                        DailySign(
-                            phone=daily["phone"],
-                            password=daily["password"],
-                            uid=daily["uid"],
-                        ),
+                        daily_sign,
                         trigger="cron",
-                        hour=str(randint(0, 10)),
-                        minute=str(randint(0, 59)),
-                        second=str(randint(0, 59)),
+                        hour=hour,
+                        minute=minute,
+                        second=second,
                     )
 
                 except DailySignException:  # error with DailySign auth
-                    print("=====DailySign Auth Failed====", file=stderr)
+                    print("==========DailySign Auth Failed==========", file=stderr)
                     traceback.print_exc()
-                    print("=====DailySign Auth Failed====", file=stderr)
+                    print("==========DailySign Auth Failed==========", file=stderr)
 
             if SCHEDULER.get_jobs():
                 SCHEDULER.start()
 
     except Exception:  # other fatal error
         MAIL_SENDER = None
-        print("======ERROR READING CONFIG======", file=stderr)
+        print("==========ERROR READING CONFIG==========", file=stderr)
         traceback.print_exc()
-        print("======ERROR READING CONFIG======", file=stderr)
+        print("==========ERROR READING CONFIG==========", file=stderr)
 
 WAITING_MAIL = set()
 
