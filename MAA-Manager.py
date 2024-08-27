@@ -122,6 +122,7 @@ class DailySign:
             ) from e
 
     def __call__(self):
+        print(f"==========DailySign [{self.phone}] Started==========", file=stderr)
         try:
             # It was said that `- 2` should be added according to experience.
             timestamp = str(time.time() - 2)
@@ -149,16 +150,28 @@ class DailySign:
             # So I left it `assigned but never used`, intentionally (for future use).
             signature = hashlib.md5(encrypted).hexdigest()
 
-            requests.post(
+            awards = requests.post(
                 self.DAILY_URL,
                 json=payload,
-                headers={"cred": self.skland_cred} | self.HEADER | header,
-            )
-        except Exception as e:
+                headers={"cred": self.skland_cred, "sign": signature}
+                | self.HEADER
+                | header,
+            ).json()["data"]["awards"]
+
+            for award in awards:
+                print(
+                    f"Award: {award['resource']['name']} × {award.get('count', 1)}",
+                    file=stderr,
+                )
+
+        except Exception:
             MAIL_SENDER.send_daily_error(self.phone)
-            raise DailySignException(
-                f"[{self.phone}]: Failed to perform daily sign in."
-            ) from e
+            print("==========DailySign Sign Failed==========", file=stderr)
+            traceback.print_exc()
+            print("==========DailySign Sign Failed==========", file=stderr)
+
+        finally:
+            print(f"==========DailySign [{self.phone}] Ended==========", file=stderr)
 
 
 CONFIG = Path("config/config.json")
