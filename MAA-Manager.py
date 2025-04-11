@@ -1,9 +1,10 @@
-from flask import Flask, abort, request
+from fastapi import FastAPI
+from fastapi.responses import PlainTextResponse
 from datetime import datetime, timedelta
 from pathlib import Path
 from dataclasses import dataclass
 import json
-import atexit
+import signal
 from smtplib import SMTP, SMTP_SSL
 from email.message import EmailMessage
 
@@ -25,7 +26,6 @@ class MailSender:
     password: str
 
     OFFLINE = "{} has just offline."
-    DAILY_ERROR = "{} has some trouble with daily sign-in."
 
     def __post_init__(self):
         self._msg = EmailMessage()
@@ -41,15 +41,8 @@ class MailSender:
 
     def send_offline(self, user: str):
         del self._msg["Subject"]
-        self._msg["Subject"] = "MAA-Manager Offline Notice"
+        self._msg["Subject"] = f"{user} Offline Notice"
         self._msg.set_content(self.OFFLINE.format(user))
-        with self.smtp_server() as smtp_server:
-            smtp_server.send_message(self._msg)
-
-    def send_daily_error(self, user: str):
-        del self._msg["Subject"]
-        self._msg["Subject"] = "MAA-Manager Daily-Sign Error"
-        self._msg.set_content(self.DAILY_ERROR.format(user))
         with self.smtp_server() as smtp_server:
             smtp_server.send_message(self._msg)
 
@@ -72,16 +65,14 @@ if CONFIG.exists():
 WAITING_MAIL = set()
 
 
-def at_exit():
+def sigterm_handler(*args):
     """Save `LAST_ACCESS` before exit."""
     with SAVED.open("w") as file:
-        json.dump(LAST_ACTION, file)
+        json.dump(LAST_ACTION, file, ensure_ascii=False, indent=2)
+signal.signal(signal.SIGTERM, sigterm_handler)
 
 
-# register
-atexit.register(at_exit)
-
-app = Flask(__name__)
+app = FastAPI()
 
 
 def display(duration: timedelta) -> str:
@@ -113,8 +104,8 @@ def display(duration: timedelta) -> str:
     return msg
 
 
-@app.route("/query/<user>")
-def query(user):
+@app.get("/query/{user}", response_class=PlainTextResponse)
+async def query(user):
     if _ := LAST_ACTION.get(user):
         action, time = _
         if action == "online":
@@ -125,12 +116,28 @@ def query(user):
         return "MAA has no action since the server started.\n"
 
 
-@app.route("/report/<user>/<action>")
-def report(user, action):
-    if action not in ("online", "offline"):
-        abort(404)
-    if action == "offline" and user in WAITING_MAIL:
+@app.get("/report/{user}/online", response_class=PlainTextResponse)
+async def report_online(user):
+    LAST_ACTION[user] = ('online', str(datetime.now()))
+    return ""
+
+@app.get("/report/{user}/offline", response_class=PlainTextResponse)
+async def report_offline(user):
+    if user in WAITING_MAIL:
         MAIL_SENDER.send_offline(user)
         WAITING_MAIL.remove(user)
-    LAST_ACTION[user] = (action, str(datetime.now()))
+    LAST_ACTION[user] = ('offline', str(datetime.now()))
     return ""
+
+if __name__ == '__main__':
+    import dotenv
+    import uvicorn
+    import os
+    dotenv.load_dotenv()
+    uvicorn.run(
+        app,
+        host=os.getenv('UVICORN_HOST'),
+        port=int(os.getenv('UVICORN_PORT')),
+        ssl_certfile=os.getenv('UVICORN_SSL_CERTFILE'),
+        ssl_keyfile=os.getenv('UVICORN_SSL_KEYFILE'),
+    )
