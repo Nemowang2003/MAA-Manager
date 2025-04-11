@@ -27,28 +27,6 @@
         "password"
       ]
     },
-    "daily-sign": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "phone": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          },
-          "uid": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "phone",
-          "password",
-          "uid"
-        ]
-      }
-    }
   },
   "required": [
     "mail-sender"
